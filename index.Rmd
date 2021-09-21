@@ -1,0 +1,78 @@
+---
+title: "R Markdown Presentation & Plotly"
+subtitle: "Developing Data Products"
+author: "ECHF"
+date: "`r format(Sys.Date(), '%d %B, %Y')`"
+output:
+  xaringan::moon_reader:
+    css: [default, metropolis, metropolis-fonts]
+    lib_dir: libs
+    nature:
+      highlightStyle: arta
+      highlightLines: true
+      countIncrementalSlides: false
+---
+
+
+
+```{r setup, include=FALSE}
+options(
+  htmltools.dir.version  = FALSE,
+  htmltools.preserve.raw = FALSE # needed for windows
+)
+```
+
+
+### Instructions
+
+#### Create a web page presentation using R Markdown that features a plot created with Plotly. Host your webpage on either GitHub Pages, RPubs, or NeoCities. Your webpage must contain the date that you created the document, and it must contain a plot created with Plotly. We would love to see you show off your creativity! 
+
+### Review criteria
+#### The rubric contains the following two questions:
+
+1.- Does the web page feature a date and is this date less than two months before the date that you're grading this assignment?
+
+2.- Is the web page a presentation and does it feature an interactive plot that appears to have been created with Plotly?
+
+
+---
+# First sample plotly interactive
+```{r include=FALSE}
+# load packages
+library(ggplot2) # to create plots and feed to ggplotly()
+library(plotly)  # to create interactive plots
+```
+```{r}
+# library(plotly)
+quakes <- read.csv("https://earthquake.usgs.gov/fdsnws/event/1/query?starttime=2010-01-01T00:00:00&minmagnitude=7&format=csv&latitude=19.42847&longitude=-99.12766&maxradiuskm=6000&orderby=magnitude")
+fig <- quakes 
+fig <- fig %>%
+  plot_ly(
+    type = 'densitymapbox',
+    lat = ~latitude,
+    lon = ~longitude,
+    coloraxis = 'coloraxis',
+    radius = 10) 
+fig <- fig %>%
+  layout(
+    mapbox = list(
+      style="stamen-terrain",
+      center= list(lon=260)), coloraxis = list(colorscale = "Viridis"))
+
+```
+###### Using this url, we have loaded earthquakes since the start of 2010 that had a magnitude of 7 and above, within a 6,000 kilometer radius of the geographic center of the Mexico city. 
+
+---
+# Map Earthquakes
+```{r}
+
+fig
+
+```
+
+
+
+
+
+
+
