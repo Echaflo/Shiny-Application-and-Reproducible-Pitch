@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="" xml:lang="">
+  <head>
+    <title>Shiny Application and Reproducible Pitch</title>
+    <meta charset="utf-8" />
+    <meta name="author" content="ECHF" />
+    <script src="libs/header-attrs/header-attrs.js"></script>
+    <link href="libs/remark-css/default.css" rel="stylesheet" />
+    <link href="libs/remark-css/metropolis.css" rel="stylesheet" />
+    <link href="libs/remark-css/metropolis-fonts.css" rel="stylesheet" />
+  </head>
+  <body>
+    <textarea id="source">
+class: center, middle, inverse, title-slide
+
+# Shiny Application and Reproducible Pitch
+## Developing Data Products
+### ECHF
+### 21 septiembre, 2021
+
+---
+
+
+
+&lt;style type="text/css"&gt;
+.remark-slide-content {
+  font-size: 10px;
+  padding: 2px 8px 2px 8px;
+}
+.remark-code, .remark-inline-code {
+  background: #f0f0f0;
+}
+.remark-code {
+  font-size: 12px;
+}
+.huge .remark-code { /*Change made here*/
+  font-size: 50% !important;
+}
+.tiny .remark-code { /*Change made here*/
+  font-size: 10% !important;
+}
+&lt;/style&gt;
+## Introduction
+#### The following APP allows us to visualize earthquakes in North America since 2010 with a magnitude greater than 5. 
+
+```r
+# used Library
+library(shiny)
+library(leaflet)
+library(RColorBrewer)
+# load dataset
+quakes &lt;- read.csv("https://earthquake.usgs.gov/fdsnws/event/1/query?starttime=2010-01-01T00:00:00&amp;minmagnitude=5&amp;format=csv&amp;latitude=19.42847&amp;longitude=-99.12766&amp;maxradiuskm=6000&amp;orderby=magnitude")
+# turn to data.frame and reshape
+quakes &lt;- as.data.frame(quakes)
+```
+#### Using this url, we have loaded earthquakes since the start of 2010 that had a magnitude of 5 and above, within a 6,000 kilometer radius of the geographic center of the Mexico city.
+
+---
+#### uI.R first part of the program where the visualization controls are established and where they are shown. 
+.huge[
+
+```r
+ui &lt;- bootstrapPage(
+    tags$style(type = "text/css", "html, body {width:100%;height:100%}"),
+    titlePanel("Earthquakes since the start of 2010 that had a magnitude of 5 and above"),
+    leafletOutput("map", width = "100%", height = "100%"),
+    absolutePanel(top = 100, right = 10,
+                  sliderInput("range", "Magnitudes", min(quakes$mag), max(quakes$mag),
+                              value = range(quakes$mag), step = 0.1
+                  ),
+                  selectInput("colors", "Color Scheme",
+                              rownames(subset(brewer.pal.info, category %in% c("seq", "div")))
+                  ),
+                  checkboxInput("legend", "Show legend", TRUE)
+    )
+)
+```
+]
+---
+#### server.R second part of the program where the page is rendered, that is, every time you move the controls, the view will be updated 
+
+```r
+  # Reactive expression for the data subsetted to what the user selected
+  filteredData &lt;- reactive({
+    quakes[quakes$mag &gt;= input$range[1] &amp; quakes$mag &lt;= input$range[2],]
+  })
+  # This reactive expression represents the palette function,
+  # which changes as the user makes selections in UI.
+  colorpal &lt;- reactive({
+    colorNumeric(input$colors, quakes$mag)
+  })
+  # output$map &lt;- renderLeaflet({
+  #   # Use leaflet() here, and only include aspects of the map that
+  #   # won't need to change dynamically (at least, not unless the
+  #   # entire map is being torn down and recreated).
+  #   leaflet(quakes) %&gt;%
+  #     addTiles() %&gt;%
+  #     setView(lng = -99.12766,
+  #             lat = 19.42847,
+  #             zoom = 3) 
+  # 
+  # })
+```
+---
+####  server.R second part of the process where the map is rendered every time  the controls are updated and thus you see the displayed view. 
+
+```r
+# Incremental changes to the map (in this case, replacing the
+  # circles when a new color is chosen) should be performed in
+  # an observer. Each independent set of things that can change
+  # should be managed in its own observer.
+  observe({
+    pal &lt;- colorpal()
+    
+    leafletProxy("map", data = filteredData()) %&gt;%
+      clearShapes() %&gt;%
+      addCircles(radius = ~6^mag/6, weight = 1, color = "#777777",
+                 fillColor = ~pal(mag), fillOpacity = 0.7, popup = ~paste(mag)
+      )
+  })
+  
+  # Use a separate observer to recreate the legend as needed.
+  observe({
+    proxy &lt;- leafletProxy("map", data = quakes)
+    
+    # Remove any existing legend, and only if the legend is
+    # enabled, create a new one.
+    proxy %&gt;% clearControls()
+    if (input$legend) {
+      pal &lt;- colorpal()
+      proxy %&gt;% addLegend(position = "bottomright",
+                          pal = pal, values = ~mag
+      )
+    }
+  })
+```
+
+
+
+
+
+
+
+    </textarea>
+<style data-target="print-only">@media screen {.remark-slide-container{display:block;}.remark-slide-scaler{box-shadow:none;}}</style>
+<script src="https://remarkjs.com/downloads/remark-latest.min.js"></script>
+<script>var slideshow = remark.create({
+"highlightStyle": "arta",
+"highlightLines": true,
+"countIncrementalSlides": false
+});
+if (window.HTMLWidgets) slideshow.on('afterShowSlide', function (slide) {
+  window.dispatchEvent(new Event('resize'));
+});
+(function(d) {
+  var s = d.createElement("style"), r = d.querySelector(".remark-slide-scaler");
+  if (!r) return;
+  s.type = "text/css"; s.innerHTML = "@page {size: " + r.style.width + " " + r.style.height +"; }";
+  d.head.appendChild(s);
+})(document);
+
+(function(d) {
+  var el = d.getElementsByClassName("remark-slides-area");
+  if (!el) return;
+  var slide, slides = slideshow.getSlides(), els = el[0].children;
+  for (var i = 1; i < slides.length; i++) {
+    slide = slides[i];
+    if (slide.properties.continued === "true" || slide.properties.count === "false") {
+      els[i - 1].className += ' has-continuation';
+    }
+  }
+  var s = d.createElement("style");
+  s.type = "text/css"; s.innerHTML = "@media print { .has-continuation { display: none; } }";
+  d.head.appendChild(s);
+})(document);
+// delete the temporary CSS (for displaying all slides initially) when the user
+// starts to view slides
+(function() {
+  var deleted = false;
+  slideshow.on('beforeShowSlide', function(slide) {
+    if (deleted) return;
+    var sheets = document.styleSheets, node;
+    for (var i = 0; i < sheets.length; i++) {
+      node = sheets[i].ownerNode;
+      if (node.dataset["target"] !== "print-only") continue;
+      node.parentNode.removeChild(node);
+    }
+    deleted = true;
+  });
+})();
+(function() {
+  "use strict"
+  // Replace <script> tags in slides area to make them executable
+  var scripts = document.querySelectorAll(
+    '.remark-slides-area .remark-slide-container script'
+  );
+  if (!scripts.length) return;
+  for (var i = 0; i < scripts.length; i++) {
+    var s = document.createElement('script');
+    var code = document.createTextNode(scripts[i].textContent);
+    s.appendChild(code);
+    var scriptAttrs = scripts[i].attributes;
+    for (var j = 0; j < scriptAttrs.length; j++) {
+      s.setAttribute(scriptAttrs[j].name, scriptAttrs[j].value);
+    }
+    scripts[i].parentElement.replaceChild(s, scripts[i]);
+  }
+})();
+(function() {
+  var links = document.getElementsByTagName('a');
+  for (var i = 0; i < links.length; i++) {
+    if (/^(https?:)?\/\//.test(links[i].getAttribute('href'))) {
+      links[i].target = '_blank';
+    }
+  }
+})();
+// adds .remark-code-has-line-highlighted class to <pre> parent elements
+// of code chunks containing highlighted lines with class .remark-code-line-highlighted
+(function(d) {
+  const hlines = d.querySelectorAll('.remark-code-line-highlighted');
+  const preParents = [];
+  const findPreParent = function(line, p = 0) {
+    if (p > 1) return null; // traverse up no further than grandparent
+    const el = line.parentElement;
+    return el.tagName === "PRE" ? el : findPreParent(el, ++p);
+  };
+
+  for (let line of hlines) {
+    let pre = findPreParent(line);
+    if (pre && !preParents.includes(pre)) preParents.push(pre);
+  }
+  preParents.forEach(p => p.classList.add("remark-code-has-line-highlighted"));
+})(document);</script>
+
+<script>
+slideshow._releaseMath = function(el) {
+  var i, text, code, codes = el.getElementsByTagName('code');
+  for (i = 0; i < codes.length;) {
+    code = codes[i];
+    if (code.parentNode.tagName !== 'PRE' && code.childElementCount === 0) {
+      text = code.textContent;
+      if (/^\\\((.|\s)+\\\)$/.test(text) || /^\\\[(.|\s)+\\\]$/.test(text) ||
+          /^\$\$(.|\s)+\$\$$/.test(text) ||
+          /^\\begin\{([^}]+)\}(.|\s)+\\end\{[^}]+\}$/.test(text)) {
+        code.outerHTML = code.innerHTML;  // remove <code></code>
+        continue;
+      }
+    }
+    i++;
+  }
+};
+slideshow._releaseMath(document);
+</script>
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+(function () {
+  var script = document.createElement('script');
+  script.type = 'text/javascript';
+  script.src  = 'https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-MML-AM_CHTML';
+  if (location.protocol !== 'file:' && /^https?:/.test(script.src))
+    script.src  = script.src.replace(/^https?:/, '');
+  document.getElementsByTagName('head')[0].appendChild(script);
+})();
+</script>
+  </body>
+</html>

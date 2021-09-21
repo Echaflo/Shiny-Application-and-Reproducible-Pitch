@@ -1,11 +1,12 @@
 ---
-title: "R Markdown Presentation & Plotly"
+title: "Shiny Application and Reproducible Pitch"
 subtitle: "Developing Data Products"
 author: "ECHF"
 date: "`r format(Sys.Date(), '%d %B, %Y')`"
 output:
   xaringan::moon_reader:
     css: [default, metropolis, metropolis-fonts]
+    font_adjustment: -2
     lib_dir: libs
     nature:
       highlightStyle: arta
@@ -13,60 +14,122 @@ output:
       countIncrementalSlides: false
 ---
 
-
-
 ```{r setup, include=FALSE}
 options(
   htmltools.dir.version  = FALSE,
   htmltools.preserve.raw = FALSE # needed for windows
 )
+
 ```
-
-
-### Instructions
-
-#### Create a web page presentation using R Markdown that features a plot created with Plotly. Host your webpage on either GitHub Pages, RPubs, or NeoCities. Your webpage must contain the date that you created the document, and it must contain a plot created with Plotly. We would love to see you show off your creativity! 
-
-### Review criteria
-#### The rubric contains the following two questions:
-
-1.- Does the web page feature a date and is this date less than two months before the date that you're grading this assignment?
-
-2.- Is the web page a presentation and does it feature an interactive plot that appears to have been created with Plotly?
-
+```{css, echo = FALSE}
+.remark-slide-content {
+  font-size: 10px;
+  padding: 2px 8px 2px 8px;
+}
+.remark-code, .remark-inline-code {
+  background: #f0f0f0;
+}
+.remark-code {
+  font-size: 12px;
+}
+.huge .remark-code { /*Change made here*/
+  font-size: 50% !important;
+}
+.tiny .remark-code { /*Change made here*/
+  font-size: 10% !important;
+}
+```
+## Introduction
+#### The following APP allows us to visualize earthquakes in North America since 2010 with a magnitude greater than 5. 
+```{r evaluate = FALSE}
+# used Library
+library(shiny)
+library(leaflet)
+library(RColorBrewer)
+# load dataset
+quakes <- read.csv("https://earthquake.usgs.gov/fdsnws/event/1/query?starttime=2010-01-01T00:00:00&minmagnitude=5&format=csv&latitude=19.42847&longitude=-99.12766&maxradiuskm=6000&orderby=magnitude")
+# turn to data.frame and reshape
+quakes <- as.data.frame(quakes)
+```
+#### Using this url, we have loaded earthquakes since the start of 2010 that had a magnitude of 5 and above, within a 6,000 kilometer radius of the geographic center of the Mexico city.
 
 ---
-# First sample plotly interactive
-```{r include=FALSE}
-# load packages
-library(ggplot2) # to create plots and feed to ggplotly()
-library(plotly)  # to create interactive plots
-```
-```{r}
-# library(plotly)
-quakes <- read.csv("https://earthquake.usgs.gov/fdsnws/event/1/query?starttime=2010-01-01T00:00:00&minmagnitude=7&format=csv&latitude=19.42847&longitude=-99.12766&maxradiuskm=6000&orderby=magnitude")
-fig <- quakes 
-fig <- fig %>%
-  plot_ly(
-    type = 'densitymapbox',
-    lat = ~latitude,
-    lon = ~longitude,
-    coloraxis = 'coloraxis',
-    radius = 10) 
-fig <- fig %>%
-  layout(
-    mapbox = list(
-      style="stamen-terrain",
-      center= list(lon=260)), coloraxis = list(colorscale = "Viridis"))
+#### uI.R first part of the program where the visualization controls are established and where they are shown. 
+.huge[
+```{r evaluate = FALSE}
+ui <- bootstrapPage(
+    tags$style(type = "text/css", "html, body {width:100%;height:100%}"),
+    titlePanel("Earthquakes since the start of 2010 that had a magnitude of 5 and above"),
+    leafletOutput("map", width = "100%", height = "100%"),
+    absolutePanel(top = 100, right = 10,
+                  sliderInput("range", "Magnitudes", min(quakes$mag), max(quakes$mag),
+                              value = range(quakes$mag), step = 0.1
+                  ),
+                  selectInput("colors", "Color Scheme",
+                              rownames(subset(brewer.pal.info, category %in% c("seq", "div")))
+                  ),
+                  checkboxInput("legend", "Show legend", TRUE)
+    )
+)
 
 ```
-###### Using this url, we have loaded earthquakes since the start of 2010 that had a magnitude of 7 and above, within a 6,000 kilometer radius of the geographic center of the Mexico city. 
-
+]
 ---
-# Map Earthquakes
-```{r}
+#### server.R second part of the program where the page is rendered, that is, every time you move the controls, the view will be updated 
+```{r evaluate = FALSE}
+  # Reactive expression for the data subsetted to what the user selected
+  filteredData <- reactive({
+    quakes[quakes$mag >= input$range[1] & quakes$mag <= input$range[2],]
+  })
+  # This reactive expression represents the palette function,
+  # which changes as the user makes selections in UI.
+  colorpal <- reactive({
+    colorNumeric(input$colors, quakes$mag)
+  })
+  # output$map <- renderLeaflet({
+  #   # Use leaflet() here, and only include aspects of the map that
+  #   # won't need to change dynamically (at least, not unless the
+  #   # entire map is being torn down and recreated).
+  #   leaflet(quakes) %>%
+  #     addTiles() %>%
+  #     setView(lng = -99.12766,
+  #             lat = 19.42847,
+  #             zoom = 3) 
+  # 
+  # })
 
-fig
+```
+---
+####  server.R second part of the process where the map is rendered every time  the controls are updated and thus you see the displayed view. 
+```{r evaluate = FALSE}
+# Incremental changes to the map (in this case, replacing the
+  # circles when a new color is chosen) should be performed in
+  # an observer. Each independent set of things that can change
+  # should be managed in its own observer.
+  observe({
+    pal <- colorpal()
+    
+    leafletProxy("map", data = filteredData()) %>%
+      clearShapes() %>%
+      addCircles(radius = ~6^mag/6, weight = 1, color = "#777777",
+                 fillColor = ~pal(mag), fillOpacity = 0.7, popup = ~paste(mag)
+      )
+  })
+  
+  # Use a separate observer to recreate the legend as needed.
+  observe({
+    proxy <- leafletProxy("map", data = quakes)
+    
+    # Remove any existing legend, and only if the legend is
+    # enabled, create a new one.
+    proxy %>% clearControls()
+    if (input$legend) {
+      pal <- colorpal()
+      proxy %>% addLegend(position = "bottomright",
+                          pal = pal, values = ~mag
+      )
+    }
+  })
 
 ```
 
