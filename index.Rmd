@@ -33,7 +33,7 @@ options(
   font-size: 12px;
 }
 .huge .remark-code { /*Change made here*/
-  font-size: 50% !important;
+  font-size: 70% !important;
 }
 .tiny .remark-code { /*Change made here*/
   font-size: 10% !important;
