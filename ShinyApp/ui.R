@@ -1,8 +1,6 @@
-library(leaflet)
 library(shiny)
-library(dplyr)
+library(leaflet)
 library(RColorBrewer)
-library(tidyverse)
 
 
 
