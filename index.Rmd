@@ -51,7 +51,8 @@ quakes <- read.csv("https://earthquake.usgs.gov/fdsnws/event/1/query?starttime=2
 # turn to data.frame and reshape
 quakes <- as.data.frame(quakes)
 ```
-#### Using this url, we have loaded earthquakes since the start of 2010 that had a magnitude of 5 and above, within a 6,000 kilometer radius of the geographic center of the Mexico city.
+#### Using this url, we have loaded earthquakes since the start of 2010 that had a magnitude of 5 and above, within a 6,000 kilometer radius of the geographic center of the Mexico city. In the app you can choose the magnitude of the earthquakes or by year in addition to coloring the areas where the earthquake originated and have the option of seeing or not a table with the labels. Due to the issue of spaces in the presentation, only the main structures are presented if you want to see the detail you have to go to the source code. 
+
 
 ---
 #### uI.R first part of the program where the visualization controls are established and where they are shown. 
